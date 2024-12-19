@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <title>Grayscale to Dice Image Converter</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .header img {
+            width: 80px;
+            height: 80px;
+            margin-right: 20px;
+        }
+
+        h1 {
+            font-size: 36px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #007bff;
+        }
+
+        #controls {
+            display: inline-block;
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+            margin-bottom: 25px;
+            border: 2px solid #007bff;
+        }
+
+        label {
+            font-size: 18px;
+            color: #555;
+            margin-right: 10px;
+        }
+
+        input[type="file"] {
+            padding: 8px;
+            margin: 10px 0;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 300px;
+        }
+
+        input[type="number"] {
+            padding: 8px;
+            margin: 10px 0;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 100px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 30px;
+            font-size: 18px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #outputCanvas {
+            border: 2px solid #007bff;
+            margin-top: 30px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        #downloadButton {
+            display: none;
+            background-color: #28a745;
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        #downloadButton:hover {
+            background-color: #218838;
+        }
+
+        .footer {
+            margin-top: 40px;
+            font-size: 14px;
+            color: #888;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <img src="ccllogo.jpg" alt="CCL Logo">
+        <h1>CCL : Dice Portrait Maker</h1>
+    </div>
+
+    <div id="controls">
+        <input type="file" id="imageInput" accept="image/*">
+        <br>
+        <label for="widthInput">Width:</label>
+        <input type="number" id="widthInput" value="50" min="1" step="1">
+        <label for="heightInput">Height:</label>
+        <input type="number" id="heightInput" value="50" min="1" step="1">
+        <br>
+        <button id="makeMosaicButton">Make Dice Mosaic</button>
+    </div>
+
+    <br>
+    <canvas id="outputCanvas"></canvas>
+    <br>
+    <button id="downloadButton">Download Image</button>
+    <button id="downloadPDFButton" style="display: none;">Download PDF</button>
+
+
+    <div class="footer">
+        <p>© 2024 Center for Creative Learning, IIT Gandhinagar</p>
+    </div>
+
+    <script>
+        let numDiceWide = 50;
+        let numDiceTall = 50;
+
+        const diceImages = {
+            1: "DICE/dice1.png",
+            2: "DICE/dice2.png",
+            3: "DICE/dice3.png",
+            4: "DICE/dice4.png",
+            5: "DICE/dice5.png",
+            6: "DICE/dice6.png"
+        };
+
+        const outputCanvas = document.getElementById('outputCanvas');
+        const ctx = outputCanvas.getContext('2d');
+        const downloadButton = document.getElementById('downloadButton');
+
+        function greyscaleToDiceValue(val) {
+            if (val < 42) return 1;
+            else if (val < 84) return 2;
+            else if (val < 126) return 3;
+            else if (val < 168) return 4;
+            else if (val < 210) return 5;
+            return 6;
+        }
+
+        async function drawDiceImage(pixels, diceWidth, diceHeight) {
+            const outputWidth = diceWidth * numDiceWide;
+            const outputHeight = diceHeight * numDiceTall;
+            outputCanvas.width = outputWidth;
+            outputCanvas.height = outputHeight;
+
+            for (let i = 0; i < pixels.length; i++) {
+                const grayscaleValue = pixels[i];
+                const diceValue = greyscaleToDiceValue(grayscaleValue);
+                const x = (i % numDiceWide) * diceWidth;
+                const y = Math.floor(i / numDiceWide) * diceHeight;
+
+                const img = new Image();
+                img.src = diceImages[diceValue];
+
+                await new Promise(resolve => {
+                    img.onload = () => {
+                        ctx.drawImage(img, x, y, diceWidth, diceHeight);
+                        resolve();
+                    };
+                });
+            }
+
+            downloadButton.style.display = 'inline-block';
+        }
+
+        document.getElementById('makeMosaicButton').addEventListener('click', function () {
+            const file = document.getElementById('imageInput').files[0];
+            if (file) {
+                numDiceWide = parseInt(document.getElementById('widthInput').value, 10);
+                numDiceTall = parseInt(document.getElementById('heightInput').value, 10);
+
+                const img = new Image();
+                const reader = new FileReader();
+
+                reader.onload = function (e) {
+                    img.src = e.target.result;
+                    img.onload = function () {
+                        const offscreenCanvas = document.createElement('canvas');
+                        const offscreenCtx = offscreenCanvas.getContext('2d');
+                        offscreenCanvas.width = numDiceWide;
+                        offscreenCanvas.height = numDiceTall;
+                        offscreenCtx.drawImage(img, 0, 0, numDiceWide, numDiceTall);
+
+                        const imageData = offscreenCtx.getImageData(0, 0, numDiceWide, numDiceTall);
+                        const pixels = [];
+                        for (let i = 0; i < imageData.data.length; i += 4) {
+                            const r = imageData.data[i];
+                            const g = imageData.data[i + 1];
+                            const b = imageData.data[i + 2];
+                            const grayscaleValue = Math.floor((r + g + b) / 3);
+                            pixels.push(grayscaleValue);
+                        }
+
+                        const diceImage = new Image();
+                        diceImage.src = diceImages[1];
+                        diceImage.onload = function () {
+                            const diceWidth = diceImage.width;
+                            const diceHeight = diceImage.height;
+                            drawDiceImage(pixels, diceWidth, diceHeight);
+                            drawDiceImage(pixels, diceWidth, diceHeight).then(() => {
+                                pdfButton.style.display = 'inline-block'; // Show PDF button
+                            });
+
+                        };
+                    };
+                };
+                reader.readAsDataURL(file);
+            } else {
+                alert("Please select an image file.");
+            }
+        });
+        downloadButton.addEventListener('click', function () {
+            const link = document.createElement('a');
+            link.download = 'dice_output.png';
+            link.href = outputCanvas.toDataURL('image/png');
+            link.click();
+        });
+
+        const pdfButton = document.getElementById('downloadPDFButton');
+
+        async function splitCanvasToPDF(canvas, partWidth, partHeight) {
+            const totalWidth = canvas.width;
+            const totalHeight = canvas.height;
+            const ctx = canvas.getContext('2d');
+
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF();
+
+            let partCount = 0;
+
+            for (let y = 0; y < totalHeight; y += partHeight) {
+                for (let x = 0; x < totalWidth; x += partWidth) {
+                    const width = Math.min(partWidth, totalWidth - x);
+                    const height = Math.min(partHeight, totalHeight - y);
+
+                    // Create an offscreen canvas for the part
+                    const partCanvas = document.createElement('canvas');
+                    partCanvas.width = width;
+                    partCanvas.height = height;
+
+                    const partCtx = partCanvas.getContext('2d');
+                    partCtx.drawImage(canvas, x, y, width, height, 0, 0, width, height);
+
+                    // Add the part to the PDF
+                    const imgData = partCanvas.toDataURL('image/png');
+                    if (partCount > 0) {
+                        pdf.addPage();
+                    }
+                    pdf.addImage(imgData, 'PNG', 0, 0, 210, (height / partWidth) * 210); // Scale to fit A4
+                    partCount++;
+                }
+            }
+
+            // Save the PDF
+            pdf.save('dice_mosaic.pdf');
+        }
+
+        pdfButton.addEventListener('click', function () {
+            const partWidth = 315;
+            const partHeight = 435;
+
+            splitCanvasToPDF(outputCanvas, partWidth, partHeight);
+        });
+
+    </script>
+
+</body>
+
+</html>
